@@ -1,0 +1,363 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(janitor)
+```
+
+```{r}
+#First, look only at medical expenses. Expenditures are downloadable by year, agency and category from https://mapyourtaxes.mo.gov/map/expenditures/Agencies/Vendor.aspx?agcy=931&cat=400&detail=2433&year=2023. You have to search the different categories a bit to find these three main expenses.
+
+#Read in medical services expenses:
+medservices1 <- read_excel("data/MAP_medical_expenditures/medservices1.xlsx") %>% 
+  mutate(type = "Medical and Dental Services")
+medservices2 <- read_excel("data/MAP_medical_expenditures/medservices2.xlsx") %>% 
+  mutate(type = "Medical and Dental Services")
+medservices3 <- read_excel("data/MAP_medical_expenditures/medservices3.xlsx") %>% 
+  mutate(type = "Medical and Dental Services")
+medservices4 <- read_excel("data/MAP_medical_expenditures/medservices4.xlsx") %>% 
+  mutate(type = "Medical and Dental Services")
+medservices5 <- read_excel("data/MAP_medical_expenditures/medservices5.xlsx") %>% 
+  mutate(type = "Medical and Dental Services")
+medservices6 <- read_excel("data/MAP_medical_expenditures/medservices6.xlsx") %>% 
+  mutate(type = "Medical and Dental Services")
+medservices7 <- read_excel("data/MAP_medical_expenditures/medservices7.xlsx") %>% 
+  mutate(type = "Medical and Dental Services")
+
+#combine and clean up
+
+medservices <- bind_rows(medservices1, medservices2, medservices3, medservices4, medservices5, medservices6, medservices7)
+rm(medservices1, medservices2, medservices3, medservices4, medservices5, medservices6, medservices7)
+
+#Repeat with medical supplies data
+vendorsupplies1 <- read_excel("data/MAP_medical_expenditures/vendor_supplies.xlsx") %>% 
+  mutate(type = "Medical and Dental Supplies")
+vendorsupplies2 <- read_excel("data/MAP_medical_expenditures/vendorsupplies2.xlsx") %>% 
+  mutate(type = "Medical and Dental Supplies")
+vendorsupplies3 <- read_excel("data/MAP_medical_expenditures/vendorsupplies3.xlsx") %>% 
+  mutate(type = "Medical and Dental Supplies")
+vendorsupplies4 <- read_excel("data/MAP_medical_expenditures/vendorsupplies4.xlsx") %>% 
+  mutate(type = "Medical and Dental Supplies")
+vendorsupplies5 <- read_excel("data/MAP_medical_expenditures/vendorsupplies5.xlsx") %>% 
+  mutate(type = "Medical and Dental Supplies")
+vendorsupplies6 <- read_excel("data/MAP_medical_expenditures/vendorsupplies6.xlsx") %>% 
+  mutate(type = "Medical and Dental Supplies")
+vendorsupplies7 <- read_excel("data/MAP_medical_expenditures/vendorsupplies7.xlsx") %>% 
+  mutate(type = "Medical and Dental Supplies")
+
+vendorsupplies <- bind_rows(vendorsupplies1, vendorsupplies2, vendorsupplies3, vendorsupplies4, vendorsupplies5, vendorsupplies6, vendorsupplies7)
+rm(vendorsupplies1, vendorsupplies2, vendorsupplies3, vendorsupplies4, vendorsupplies5, vendorsupplies6, vendorsupplies7)
+
+#repeat with medical equipment
+medequip1 <- read_excel("data/MAP_medical_expenditures/medequip1.xlsx") %>% 
+  mutate(type = "Medical and Dental Equipment")
+medequip2 <- read_excel("data/MAP_medical_expenditures/medequip2.xlsx") %>% 
+  mutate(type = "Medical and Dental Equipment")
+medequip3 <- read_excel("data/MAP_medical_expenditures/medequip3.xlsx") %>% 
+  mutate(type = "Medical and Dental Equipment")
+medequip4 <- read_excel("data/MAP_medical_expenditures/medequip4.xlsx") %>% 
+  mutate(type = "Medical and Dental Equipment")
+medequip5 <- read_excel("data/MAP_medical_expenditures/medequip5.xlsx") %>% 
+  mutate(type = "Medical and Dental Equipment")
+medequip6 <- read_excel("data/MAP_medical_expenditures/medequip6.xlsx") %>% 
+  mutate(type = "Medical and Dental Equipment")
+medequip7 <- read_excel("data/MAP_medical_expenditures/medequip7.xlsx") %>% 
+  mutate(type = "Medical and Dental Equipment")
+
+medequip <- bind_rows(medequip1, medequip2, medequip3, medequip4, medequip5, medequip6, medequip7)
+rm(medequip1, medequip2, medequip3, medequip4, medequip5, medequip6, medequip7)
+
+#combine all
+med_expenses <- bind_rows(medservices, vendorsupplies, medequip) %>% arrange(fisc_year)
+rm(medservices, vendorsupplies, medequip)
+```
+
+```{r}
+#How much is dedicated to medical each year?
+med_expenses %>% 
+  group_by(fisc_year) %>% 
+  summarise(total = sum(amount))
+#Total medical expenses for the Department of Corrections has risen almost every year in the last seven years, with an especially large jump from FY 2021 to FY 2022.
+
+#What vendor collects the most each year?
+med_expenses %>% 
+  group_by(fisc_year, name) %>% 
+  summarise(total = sum(amount)) %>% 
+  arrange(desc(total))
+#Corizon and Centurion, the primary health providers -- this is not surprising
+```
+
+```{r}
+#Same question, but now specify what type of expenses these vendors were -- services, supplies, equipment
+med_expenses %>% 
+  group_by(fisc_year, type, name) %>% 
+  summarise(total = sum(amount)) %>% 
+  arrange(desc(total))
+#Services always cost the most. 
+```
+
+```{r}
+#Count vendors - who are they, outside of Corizon and Centurion?
+med_expenses %>% count(name) %>% 
+  arrange(desc(n))
+#Most of these are county and city health departments (for jail services, maybe?), and then some health systems -- maybe for outside procedures that contractor doesn't cover? Will need an interview to confirm.
+
+#There is a large number of procurement card payments, but this data doesn't show what was purchased. Again, will need an interview (or an additional records request) to figure out what those payments are for.
+```
+```{r}
+#Take a closer look at payments to providers only
+providers <- med_expenses %>% 
+  filter(grepl("corizon", name, ignore.case = T) | grepl("centurion", name, ignore.case = T))
+
+#How much was spent on providers each fiscal year?
+
+providers %>% 
+  group_by(fisc_year) %>% 
+  summarise(total = sum(amount))
+
+#Again, huge jump from 2021 to 2022...probably due to switch to Centurion, even though on paper, Centurion has not gotten as much as Corizon since they didn't serve the whole fiscal year.
+
+#The last full fiscal year that Corizon was provider was 2021. They took home $149,546,767 that year.
+providers %>% 
+  filter(fisc_year == 2021) %>% 
+  summarise(sum(amount))
+
+#Centurion started it's contract Nov. 15, 2021 (https://www.centurionmanagedcare.com/newsroom/centurion-health-begin-correctional-health-contract-for-missouri-department-of-corrections.html). From that point, to the end of FY 2022 (June 30, 2022), Centurion took home $106,496,958.
+providers %>% 
+  filter(name == "CENTURION OF MISSOURI LLC") %>% 
+  filter(fisc_year == 2022) %>% 
+  summarise(sum(amount))
+
+```
+
+```{r}
+#How does medical spending  compare to other expenses in the DOC? Txt files downloaded from the Expenditures Data column on this page: https://mapyourtaxes.mo.gov/MAP/Download/Default.aspx. These files show all govt. expenses for the fiscal year.
+
+#Read in each year, clean, and filter to look only at Department of Corrections
+exp2022 <- read_delim("data/EXP_2022 (1).txt") %>% 
+  clean_names() %>% 
+  filter(agency_name == "CORRECTIONS")
+
+exp2021 <- read_delim("data/EXP_2021.txt") %>% 
+  clean_names() %>% 
+  filter(agency_name == "CORRECTIONS")
+
+exp2020 <- read_delim("data/EXP_2020.txt") %>% 
+  clean_names() %>% 
+  filter(agency_name == "CORRECTIONS")
+
+exp2019 <- read_delim("data/EXP_2019.txt") %>% 
+  clean_names() %>% 
+  filter(agency_name == "CORRECTIONS")
+
+exp2018 <- read_delim("data/EXP_2018.txt") %>% 
+  clean_names() %>% 
+  filter(agency_name == "CORRECTIONS")
+
+exp2017 <- read_delim("data/EXP_2017.txt") %>% 
+  clean_names() %>% 
+  filter(agency_name == "CORRECTIONS")
+
+#combine and clean up
+corr_expenses <- bind_rows(exp2017, exp2018, exp2019, exp2020, exp2021, exp2022)
+rm(exp2017, exp2018, exp2019, exp2020, exp2021, exp2022)
+```
+
+```{r}
+#Do these datasets match up (they should, as they're both from MAP, but just to double check)
+
+#Compare this to the total medical expenses per FY, above
+corr_expenses %>% 
+  filter(grepl("medical & dental", detail_description, ignore.case = T)) %>% 
+  group_by(fiscal_year) %>% 
+  summarise(total = sum(payments_total))
+#They match -- but we need to clean a bit. Some vendor names are not spelled consistently
+
+write_csv(corr_expenses, "data/corr_expenses.csv") #Take into OpenRefine and make sure all the vendor names are consistent
+
+#Replace current corr_expenses with this file, that I cleaned in OpenRefine
+corr_expenses <- read_csv("data/corr-expenses-csv.csv")#bring back in
+
+```
+
+```{r}
+#Some integrity checks
+corr_expenses %>% 
+  count(detail_description) %>% 
+  arrange(desc(n))
+
+#Look at types of expenses for the companies I'm interested in
+
+corr_expenses %>% 
+  filter(vendor_name == "GATEWAY FOUNDATION INC") %>% #This company provides substance use treatment
+  count(detail_description) %>% 
+  arrange(desc(n))
+
+corr_expenses %>% 
+  filter(grepl("gateway found", vendor_name, ignore.case = T)) %>% #checking to make sure spelling is not an issue
+  count(detail_description) %>% 
+  arrange(desc(n))
+
+corr_expenses %>% 
+  filter(grepl("corizon", vendor_name, ignore.case = T)) %>% #former health provider
+  count(detail_description) %>% 
+  arrange(desc(n))
+
+corr_expenses %>% 
+  filter(grepl("centurion", vendor_name, ignore.case = T)) %>% #current health provider
+  count(detail_description) %>% 
+  arrange(desc(n))
+
+```
+
+```{r}
+#What is the DOC's largest expenditure category each year?
+corr_expenses %>% 
+  group_by(detail_description, fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total))
+#Medical and dental services, by more than $100,000,000
+```
+
+```{r}
+#Medical is going up. What are other categories doing each year?
+#Look only at top five categories
+corr_expenses %>% 
+  filter(detail_description == "MEDICAL & DENTAL SERVICES" | detail_description == "AID TO LOCAL GOVERNMENTS" | detail_description == "FOOD & DIETARY SUPPLIES" | detail_description == "RESALE MERCHANDISE" | detail_description == "OTHER PROFESSIONAL SERVICES") %>% 
+  group_by(detail_description, fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total)) %>% 
+  ggplot(aes(x = fiscal_year, y = total, color = detail_description)) +
+   geom_line() +
+  geom_point() +
+  scale_y_continuous(labels=scales::comma) 
+
+#It looks like the others have stayed consistent, as Medical has until 2021-2022. But the scale is so different that it's hard to say for sure. Let's look at medical in it's own graph, and then everything else.
+corr_expenses %>% 
+  filter(detail_description == "MEDICAL & DENTAL SERVICES") %>% 
+  group_by(detail_description, fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total)) %>% 
+  ggplot(aes(x = fiscal_year, y = total, color = detail_description)) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(labels=scales::comma) 
+  
+```
+
+```{r}
+
+corr_expenses %>% 
+  filter(detail_description == "AID TO LOCAL GOVERNMENTS" | detail_description == "FOOD & DIETARY SUPPLIES" | detail_description == "RESALE MERCHANDISE" | detail_description == "OTHER PROFESSIONAL SERVICES") %>% 
+  group_by(detail_description, fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total)) %>% 
+  ggplot(aes(x = fiscal_year, y = total, color = detail_description)) +
+   geom_line() +
+  geom_point() +
+  scale_y_continuous(labels=scales::comma) 
+
+#Aid to local governments down by about $10 million in one year. Also an interestign dip in food services -- the state just started a new contract with a food provider in 2022.
+
+```
+
+```{r}
+#Same question as above, but find highest paid vendors across all categories - Corizon, Centurion, Ameren Missouri, CLIENT/INMATE/STUDENT/WORKER, Gateway Foundation Inc.
+corr_expenses %>% 
+  group_by(vendor_name) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total))
+
+#each year
+corr_expenses %>% 
+  group_by(vendor_name, fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total))
+
+#Procurement cards used so often for expenses that they count as a top vendor. What categories are they most used for?
+corr_expenses %>% 
+  filter(vendor_name == "PROCUREMENT CARD PAYMENT") %>% 
+  group_by(detail_description) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total))
+#interesting -- resale, food, and "other specific supplies" are top categories. Nothing suggesting medical payments
+
+#Graph only Corizon and Centurion payments
+corr_expenses %>% 
+  filter(grepl("corizon", vendor_name, ignore.case = T) | grepl("centurion", vendor_name, ignore.case = T)) %>% 
+  group_by(vendor_name, fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total)) %>% 
+  ggplot(aes(x = fiscal_year, y = total, color = vendor_name)) +
+   geom_line() +
+  geom_point() #We see Corizon go way way down after the contract ended
+```
+
+```{r}
+#factor for the fact that centurion essentially replaced corizon. Does the cost say roughly consistent?
+corr_expenses %>% 
+  filter(grepl("corizon", vendor_name, ignore.case = T) | grepl("centurion", vendor_name, ignore.case = T)) %>% 
+  group_by(fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total)) %>% 
+  ggplot(aes(x = fiscal_year, y = total)) +
+   geom_line() +
+  geom_point() +
+  scale_y_continuous(labels=scales::comma)+
+  labs(title = "Payments to MO prison medical providers (Corizon and Centurion)")
+#This shows the giant leap in fy 2022, as we've seen. Data is consistent with graph above. 
+```
+
+```{r}
+#Now let's look at the other top vendors, which are closer in scale. No really distinctive pattern.
+corr_expenses %>% 
+  filter(grepl("ameren missouri", vendor_name, ignore.case = T) | grepl("gateway foundation", vendor_name, ignore.case = T) | grepl("CLIENT/INMATE/STUDENT/WORKER", vendor_name, ignore.case = T)) %>% 
+  group_by(vendor_name, fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total)) %>% 
+  ggplot(aes(x = fiscal_year, y = total, color = vendor_name)) +
+   geom_line() +
+  geom_point() +
+  scale_y_continuous(labels=scales::comma) +
+  labs(title = "MO Department of Corrections' Highest-Paid Vendors (Excluding Medical)")
+```
+
+```{r}
+#Have there been any changes to medical expenses NOT related to the two big providers? First, ID other top vendors. *I noticed at least one vendor name discrepancy that needs to be fixed
+corr_expenses %>% 
+  filter(grepl("medical", detail_description, ignore.case = T)) %>% 
+  filter(!grepl("corizon", vendor_name, ignore.case = T)) %>% 
+  filter(!grepl("centurion", vendor_name, ignore.case = T)) %>% 
+  group_by(vendor_name) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total))
+
+#Now look at those vendors each year to see if their payments had big changes
+corr_expenses %>% 
+  filter(grepl("medical", detail_description, ignore.case = T)) %>% 
+  filter(vendor_name == "CARDINAL HEALTH 110 LLC" | vendor_name == "MORRIS & DICKSON CO LLC" | vendor_name == "MICROGENICS CORP" | vendor_name == "ELECTROMEK DIAGNOSTIC SYSTEMS" | vendor_name == "FISHER SCIENTIFIC LLC") %>% 
+  group_by(fiscal_year, vendor_name) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  ggplot(aes(x = fiscal_year, y = total, color = vendor_name)) +
+  geom_line() +
+  geom_point()
+
+#Some of these were not paid the whole five years, so it's tough to find a pattern. Others stayed consistent.
+
+#Let's just look at the total for all things not Corizon or Centurion
+
+corr_expenses %>% 
+  filter(grepl("medical", detail_description, ignore.case = T)) %>% 
+  filter(!grepl("corizon", vendor_name, ignore.case = T)) %>% 
+  filter(!grepl("centurion", vendor_name, ignore.case = T)) %>% 
+  group_by(fiscal_year) %>% 
+  summarise(total = sum(payments_total)) %>% 
+  arrange(desc(total))
+#For health costs not related to the provider, there was a big spike in expenses in 2020, but it's been going down since
+```
+
