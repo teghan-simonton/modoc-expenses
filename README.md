@@ -3,7 +3,7 @@ Analysis of expenditures data from the Missouri Department of Corrections
 
 All files used in this analysis was downloaded from the Missouri Accountability Portal: https://mapyourtaxes.mo.gov/MAP/Portal/Default.aspx
 
-Data had to be downloaded by each individual fiscal year, and combined into a master-file in R. I analyzed expenditures of the Department of Corrections, with special focus on vendors paid for medical and dental services. 
+Data had to be downloaded by each individual fiscal year, and combined into a master-file in R. I analyzed expenditures of the Department of Corrections, with special focus on vendors paid for medical and dental services. All analysis, and further explanation for each xlsx and txt file, can be found in doc_expenses.Rmd.
 
 The analysis includes two versions of the same dataset, downloaded from different pages of the Missouri Accountability Portal. The bulk of findings were made with the file labled corr_expenses. 
 
